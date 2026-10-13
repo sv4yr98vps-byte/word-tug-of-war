@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>單字拔河大亂鬥 - Word Tug-of-War (即時出題版)</title>
+  <style>
+    :root {
+      --red-color: #ff4757;
+      --red-glow: rgba(255, 71, 87, 0.4);
+      --blue-color: #1e90ff;
+      --blue-glow: rgba(30, 144, 255, 0.4);
+      --gold-color: #ffd700;
+      --slime-color: #2ed573;
+      --dark-bg: #0f1423;
+      --card-bg: #1a2238;
+      --card-border: #2d3b5e;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 50% 20%, #1e2947 0%, #0b0f19 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+      padding-bottom: 25px;
+    }
+
+    /* 頂部導覽列 */
+    header {
+      width: 100%;
+      max-width: 1060px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      margin-top: 6px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 900;
+      font-size: 1.4rem;
+      background: linear-gradient(135deg, #ff9f43, #ffd700);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 4px 15px rgba(255, 159, 67, 0.3);
+    }
+
+    .top-controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn-icon {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 99px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: bold;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-icon:hover {
+      background: #273456;
+      transform: translateY(-2px);
+    }
+
+    .btn-teacher-setup {
+      background: linear-gradient(135deg, #ffd700, #ff9f43);
+      color: #1a1e29;
+      border: none;
+      font-weight: 900;
+      box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+    }
+    .btn-teacher-setup:hover {
+      background: linear-gradient(135deg, #ffe033, #ffa84e);
+      transform: translateY(-2px) scale(1.03);
+    }
+
+    /* 兩隊比分板 */
+    .scoreboard {
+      width: 100%;
+      max-width: 1020px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 15px;
+      padding: 0 15px;
+      margin-bottom: 8px;
+    }
+
+    .team-card {
+      background: var(--card-bg);
+      border: 2px solid var(--card-border);
+      border-radius: 16px;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+    }
+
+    .team-card.team-red {
+      border-left: 8px solid var(--red-color);
+    }
+    .team-card.team-blue {
+      border-right: 8px solid var(--blue-color);
+    }
+
+    .team-card.active {
+      transform: scale(1.04);
+      box-shadow: 0 0 25px var(--glow-color);
+      border-color: var(--active-color);
+    }
+
+    .team-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .team-name {
+      font-size: 1.25rem;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .team-status-pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-top: 4px;
+      display: inline-block;
+      width: fit-content;
+    }
+
+    .team-red .team-status-pill { background: rgba(255, 71, 87, 0.2); color: #ff6b81; }
+    .team-blue .team-status-pill { background: rgba(30, 144, 255, 0.2); color: #70a1ff; }
+
+    .team-stats {
+      text-align: right;
+    }
+
+    .pull-power-label {
+      font-size: 0.75rem;
+      color: #8fa0c0;
+    }
+    .pull-power-val {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--gold-color);
+    }
+
+    .vs-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-weight: 900;
+      font-size: 1.1rem;
+      color: #8fa0c0;
+      padding: 6px 12px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* 拔河 Canvas 舞台 */
+    .arena-container {
+      width: 100%;
+      max-width: 1020px;
+      height: 250px;
+      position: relative;
+      margin: 8px 0;
+      background: linear-gradient(180deg, #162035 0%, #101726 100%);
+      border-radius: 20px;
+      border: 2px solid var(--card-border);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+    }
+
+    #arenaCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .rope-meter-wrap {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 65%;
+      height: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 99px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      overflow: hidden;
+      display: flex;
+    }
+
+    .rope-meter-red {
+      height: 100%;
+      background: linear-gradient(90deg, #ff4757, #ff6b81);
+      width: 50%;
+      transition: width 0.3s ease-out;
+    }
+
+    .rope-meter-blue {
+      height: 100%;
+      background: linear-gradient(90deg, #70a1ff, #1e90ff);
+      width: 50%;
+      transition: width 0.3s ease-out;
+    }
+
+    .rope-center-pin {
+      position: absolute;
+      bottom: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 22px;
+      background: #ffd700;
+      box-shadow: 0 0 8px #ffd700;
+      z-index: 5;
+    }
+
+    /* 單字卡拼寫區 */
+    .word-section {
+      width: 100%;
+      max-width: 1020px;
+      margin: 10px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .word-hint-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(26, 34, 56, 0.85);
+      padding: 6px 18px;
+      border-radius: 99px;
+      border: 1px solid #2d3b5e;
+      font-size: 0.95rem;
+      color: #ced6e0;
+    }
+
+    .word-hint-box strong {
+      color: var(--gold-color);
+      font-size: 1.05rem;
+    }
+
+    .word-tiles-container {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 10px;
+      max-width: 1000px;
+    }
+
+    .word-tile {
+      width: 52px;
+      height: 66px;
+      background: #172138;
+      border: 2px solid #2f3d61;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      box-shadow: 0 6px 0 #0d1322, 0 10px 15px rgba(0, 0, 0, 0.4);
+      color: #fff;
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .word-tile.revealed {
+      background: linear-gradient(135deg, #2ed573, #10ac84);
+      border-color: #7bed9f;
+      color: #fff;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 10px 0 #0b6951, 0 12px 20px rgba(46, 213, 115, 0.4);
+      animation: popIn 0.4s ease-out;
+    }
+
+    .word-tile.unrevealed {
+      border-bottom: 5px solid #485460;
+    }
+
+    .word-tile.space-tile {
+      width: 24px;
+      height: 66px;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.4) rotate(-10deg); opacity: 0; }
+      70% { transform: scale(1.15) rotate(4deg); }
+      100% { transform: translateY(-4px) scale(1.05); opacity: 1; }
+    }
+
+    /* 虛擬 26 鍵盤 */
+    .keyboard-container {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+      margin-top: 6px;
+      padding: 0 10px;
+    }
+
+    .keyboard-row {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .key-btn {
+      flex: 1;
+      max-width: 72px;
+      height: 52px;
+      background: linear-gradient(180deg, #2b395c 0%, #1c2742 100%);
+      border: 1px solid #41537e;
+      border-radius: 10px;
+      color: #f1f2f6;
+      font-size: 1.35rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 5px 0 #0d1424;
+      transition: transform 0.1s, box-shadow 0.1s, background 0.2s;
+    }
+
+    .key-btn:active:not(:disabled) {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 #0d1424;
+    }
+
+    .key-btn.correct-red {
+      background: linear-gradient(180deg, #ff4757, #c0392b) !important;
+      border-color: #ff6b81;
+      color: #fff;
+      box-shadow: 0 2px 0 #801d1d !important;
+      transform: translateY(3px);
+      opacity: 0.9;
+    }
+
+    .key-btn.correct-blue {
+      background: linear-gradient(180deg, #1e90ff, #2980b9) !important;
+      border-color: #70a1ff;
+      color: #fff;
+      box-shadow: 0 2px 0 #134e80 !important;
+      transform: translateY(3px);
+      opacity: 0.9;
+    }
+
+    .key-btn.wrong-used {
+      background: #192033 !important;
+      border-color: #252f49 !important;
+      color: #4a5676 !important;
+      box-shadow: none !important;
+      transform: translateY(4px);
+      cursor: not-allowed;
+      text-decoration: line-through;
+    }
+
+    /* 彈跳視窗通用樣式 */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(4, 7, 15, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: linear-gradient(145deg, #1c2742, #101728);
+      border: 3px solid #ffd700;
+      border-radius: 24px;
+      padding: 30px 36px;
+      text-align: center;
+      max-width: 520px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.25);
+      transform: scale(0.85);
+      transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .modal-overlay.show .modal-card {
+      transform: scale(1);
+    }
+
+    .btn-action-lg {
+      background: linear-gradient(135deg, #ffd700, #ff9f43);
+      color: #1a1e29;
+      font-size: 1.2rem;
+      font-weight: 900;
+      padding: 12px 28px;
+      border-radius: 99px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(255, 159, 67, 0.4);
+      transition: all 0.2s;
+    }
+    .btn-action-lg:hover {
+      transform: scale(1.04);
+      box-shadow: 0 8px 25px rgba(255, 159, 67, 0.6);
+    }
+
+    /* 老師即時出題面板專用樣式 */
+    .input-group {
+      text-align: left;
+      margin-bottom: 16px;
+    }
+
+    .input-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #ced6e0;
+      margin-bottom: 6px;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .custom-input {
+      width: 100%;
+      background: #0f1627;
+      border: 2px solid #3d4f7c;
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .custom-input:focus {
+      border-color: #ffd700;
+      box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+    }
+
+    .btn-toggle-mask {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.2rem;
+      color: #8fa0c0;
+      padding: 4px;
+    }
+
+    .preset-pills-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+      justify-content: center;
+    }
+
+    .preset-pill {
+      background: #253352;
+      border: 1px solid #3d4f7c;
+      color: #ced6e0;
+      padding: 5px 12px;
+      border-radius: 99px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .preset-pill:hover {
+      background: #ff9f43;
+      color: #1a1e29;
+      border-color: #ffd700;
+      transform: translateY(-2px);
+    }
+
+    /* 震動與回饋動畫 */
+    .screen-shake {
+      animation: shakeEffect 0.35s cubic-bezier(.36,.07,.19,.97) both;
+    }
+
+    @keyframes shakeEffect {
+      10%, 90% { transform: translate3d(-3px, 0, 0); }
+      20%, 80% { transform: translate3d(4px, -2px, 0); }
+      30%, 50%, 70% { transform: translate3d(-6px, 3px, 0); }
+      40%, 60% { transform: translate3d(6px, -3px, 0); }
+    }
+
+    .floating-feedback {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 2.2rem;
+      font-weight: 900;
+      text-shadow: 0 4px 15px rgba(0, 0, 0, 0.8);
+      pointer-events: none;
+      z-index: 20;
+      opacity: 0;
+      transition: all 0.4s ease-out;
+    }
+    .floating-feedback.active {
+      opacity: 1;
+      transform: translate(-50%, -90%) scale(1.15);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 頂部功能列 -->
+  <header>
+    <div class="brand">
+      <span>🪢</span>
+      <span>單字拔河大亂鬥 (WORD TUG-OF-WAR)</span>
+    </div>
+    <div class="top-controls">
+      <button class="btn-icon btn-teacher-setup" id="btnOpenSetup" title="快速輸入新單字">
+        <span>✏️</span> 老師快速出題
+      </button>
+      <button class="btn-icon" id="btnPronounce" title="聆聽單字發音">
+        <span>🔊</span> 聽單字發音
+      </button>
+      <button class="btn-icon" id="btnRestart" title="重新開始本局">
+        <span>🔄</span> 重新開局
+      </button>
+    </div>
+  </header>
+
+  <!-- 兩隊計分板與當前回合 -->
+  <section class="scoreboard">
+    <!-- 紅隊 -->
+    <div class="team-card team-red active" id="cardRed" style="--glow-color: var(--red-glow); --active-color: var(--red-color);">
+      <div class="team-info">
+        <div class="team-name">
+          <span>🔥</span> 紅隊 (Fire)
+        </div>
+        <span class="team-status-pill" id="redTurnBadge">🎯 當前回合作答</span>
+      </div>
+      <div class="team-stats">
+        <div class="pull-power-label">答對拉力</div>
+        <div class="pull-power-val" id="redScore">0</div>
+      </div>
+    </div>
+
+    <!-- 中間回合/VS標記 -->
+    <div class="vs-badge">
+      <span>VS</span>
+      <small style="font-size:0.65rem; color:#ffd700; margin-top:2px;" id="roundNotice">輪流猜字</small>
+    </div>
+
+    <!-- 藍隊 -->
+    <div class="team-card team-blue" id="cardBlue" style="--glow-color: var(--blue-glow); --active-color: var(--blue-color);">
+      <div class="team-stats" style="text-align: left;">
+        <div class="pull-power-label">答對拉力</div>
+        <div class="pull-power-val" id="blueScore">0</div>
+      </div>
+      <div class="team-info" style="align-items: flex-end;">
+        <div class="team-name">
+          藍隊 (Ice) <span>⚡</span>
+        </div>
+        <span class="team-status-pill" id="blueTurnBadge" style="display:none;">🎯 當前回合作答</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 拔河主舞台 Canvas -->
+  <div class="arena-container" id="arenaBox">
+    <canvas id="arenaCanvas"></canvas>
+    <div class="rope-center-pin"></div>
+    <div class="rope-meter-wrap">
+      <div class="rope-meter-red" id="ropeMeterRed"></div>
+      <div class="rope-meter-blue" id="ropeMeterBlue"></div>
+    </div>
+    <div class="floating-feedback" id="feedbackText"></div>
+  </div>
+
+  <!-- 單字填空題卡區 -->
+  <section class="word-section">
+    <div class="word-hint-box">
+      <span>💡 題目提示：</span>
+      <strong id="displayMeaning">有趣的、引人入勝的</strong>
+      <span id="displayLettersCount" style="color:#718093;">(共 11 個字母)</span>
+    </div>
+
+    <div class="word-tiles-container" id="wordTiles">
+      <!-- 字母格子由 JS 動態產生 -->
+    </div>
+  </section>
+
+  <!-- 虛擬 26 鍵盤區 -->
+  <section class="keyboard-container" id="keyboard">
+    <!-- QWERTY 排列按鈕 -->
+  </section>
+
+  <!-- 老師出題彈跳視窗 (Teacher Setup Modal) -->
+  <div class="modal-overlay" id="setupModal">
+    <div class="modal-card">
+      <div style="font-size: 2.5rem; margin-bottom: 6px;">🎯</div>
+      <h2 style="font-size: 1.8rem; font-weight: 900; margin-bottom: 4px;">老師出題室</h2>
+      <p style="color: #8fa0c0; font-size: 0.9rem; margin-bottom: 18px;">輸入你想讓學生比賽的英文單字，點擊立即開戰！</p>
+
+      <!-- 英文單字欄位 (附防偷看遮蔽開關) -->
+      <div class="input-group">
+        <div class="input-label">
+          <span>英文單字 (Word)</span>
+          <span style="font-size:0.75rem; color:#ffd700; cursor:pointer;" id="btnMaskToggle">🙈 點此遮蔽(防學生偷看)</span>
+        </div>
+        <div class="input-wrapper">
+          <input type="text" id="inputWord" class="custom-input" placeholder="例如：interesting" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" value="interesting">
+        </div>
+      </div>
+
+      <!-- 中文提示欄位 -->
+      <div class="input-group">
+        <div class="input-label">
+          <span>中文提示 / 釋義 (選填)</span>
+        </div>
+        <div class="input-wrapper">
+          <input type="text" id="inputMeaning" class="custom-input" placeholder="例如：有趣的、引起興趣的" value="有趣的、引起興趣的">
+        </div>
+      </div>
+
+      <!-- 快速範例按鈕 -->
+      <div style="margin-bottom: 20px;">
+        <div style="font-size: 0.8rem; color: #8fa0c0; margin-bottom: 6px;">或點擊快速帶入範例單字：</div>
+        <div class="preset-pills-wrap">
+          <span class="preset-pill" onclick="setPreset('interesting', '有趣的、引人入勝的')">interesting</span>
+          <span class="preset-pill" onclick="setPreset('challenge', '挑戰、難題')">challenge</span>
+          <span class="preset-pill" onclick="setPreset('fantastic', '極好的、奇妙的')">fantastic</span>
+          <span class="preset-pill" onclick="setPreset('basketball', '籃球')">basketball</span>
+          <span class="preset-pill" onclick="setPreset('dinosaur', '恐龍')">dinosaur</span>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; justify-content:center;">
+        <button class="btn-action-lg" id="btnStartGameWithWord" style="width: 100%;">⚡ 立即生成遊戲並開戰！</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 勝利結算 Modal -->
+  <div class="modal-overlay" id="winModal">
+    <div class="modal-card">
+      <div style="font-size: 4rem; margin-bottom: 8px;">🏆</div>
+      <h2 style="font-size: 2rem; font-weight: 900; margin-bottom: 8px;" id="modalTitle">紅隊獲勝！</h2>
+      <p style="color: #a4b0be;" id="modalSubtitle">靠著無懈可擊的單字實力，把對手整隊拽進黏液池！</p>
+      
+      <div style="background: rgba(0, 0, 0, 0.35); padding: 14px 20px; border-radius: 14px; margin: 18px 0; border: 1px solid rgba(255, 255, 255, 0.1);">
+        <div style="font-size: 0.85rem; color: #8fa0c0;">本題單字</div>
+        <div style="font-size: 1.9rem; font-weight: 900; color: #2ed573; letter-spacing: 2px;" id="modalWordReview">INTERESTING</div>
+        <div style="font-size: 1.05rem; color: #ced6e0; margin-top: 4px;" id="modalMeaningReview">有趣的、引起興趣的</div>
+      </div>
+
+      <div style="display:flex; gap:12px; justify-content:center;">
+        <button class="btn-action-lg" id="btnNextWordModal" style="flex:1;">✏️ 出下一題</button>
+        <button class="btn-icon" id="btnModalPlayAgain" style="flex:1; justify-content:center; padding:12px 20px; font-size:1.05rem;">🔄 再玩一次本題</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================
+       1. 遊戲核心狀態
+       ========================================================= */
+    let currentWord = "INTERESTING";
+    let currentMeaning = "有趣的、引人入勝的";
+
+    let gameState = {
+      currentTeam: 'red', // 'red' or 'blue'
+      guessedLetters: new Set(),
+      correctLetters: new Set(),
+      redCorrectCount: 0,
+      blueCorrectCount: 0,
+      ropeOffset: 0, // -100 ~ 100
+      targetRopeOffset: 0,
+      isGameOver: false,
+      isMasked: false
+    };
+
+    // Web Audio 音效引擎
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+      }
+      init() {
+        if (!this.ctx) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+      }
+      playCorrect(hits = 1) {
+        this.init();
+        const baseFreq = 523.25;
+        const notes = hits > 1 ? [baseFreq, baseFreq * 1.25, baseFreq * 1.5, baseFreq * 2] : [baseFreq, baseFreq * 1.5];
+        notes.forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.08);
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime + i * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.08 + 0.3);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + i * 0.08);
+          osc.stop(this.ctx.currentTime + i * 0.08 + 0.35);
+        });
+      }
+      playWrong() {
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(160, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.25);
+      }
+      playPull() {
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(440, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.26);
+      }
+      playSplash() {
+        this.init();
+        const bufferSize = this.ctx.sampleRate * 0.5;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, this.ctx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.4);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.45);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start();
+        noise.stop(this.ctx.currentTime + 0.45);
+      }
+      playVictory() {
+        this.init();
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.15);
+          gain.gain.setValueAtTime(0.3, this.ctx.currentTime + i * 0.15);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.15 + 0.5);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + i * 0.15);
+          osc.stop(this.ctx.currentTime + i * 0.15 + 0.6);
+        });
+      }
+    }
+    const sound = new SoundEngine();
+
+    function speakWord(text = currentWord) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.85;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    /* =========================================================
+       2. 拔河物理動態 Canvas 渲染
+       ========================================================= */
+    const canvas = document.getElementById('arenaCanvas');
+    const ctx = canvas.getContext('2d');
+    let ropeVibration = 0;
+    let particles = [];
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function spawnParticles(x, y, color, count = 12) {
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: x, y: y,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8 - 2,
+          radius: Math.random() * 4 + 2,
+          color: color,
+          alpha: 1,
+          life: 0.95
+        });
+      }
+    }
+
+    function drawWarrior(ctx, x, y, isRed, pullAnimOffset, isFalling = false) {
+      ctx.save();
+      ctx.translate(x, y);
+      const mainColor = isRed ? '#ff4757' : '#1e90ff';
+      const leanAngle = isRed ? -0.22 : 0.22;
+
+      if (isFalling) {
+        ctx.rotate(isRed ? 0.8 : -0.8);
+      } else {
+        ctx.rotate(leanAngle + Math.sin(pullAnimOffset) * 0.05);
+      }
+
+      // 影子
+      ctx.beginPath();
+      ctx.ellipse(0, 38, 22, 6, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+      ctx.fill();
+
+      // 腿
+      ctx.strokeStyle = '#2f3542';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-8, 10);
+      ctx.lineTo(isRed ? -18 : 18, 36);
+      ctx.moveTo(6, 10);
+      ctx.lineTo(isRed ? -4 : 4, 36);
+      ctx.stroke();
+
+      // 身體
+      ctx.fillStyle = mainColor;
+      ctx.beginPath();
+      ctx.roundRect(-14, -12, 28, 26, [8, 8, 4, 4]);
+      ctx.fill();
+
+      // 手臂
+      ctx.strokeStyle = '#f1c40f';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(-6, -2);
+      ctx.lineTo(isRed ? 14 : -14, 2);
+      ctx.stroke();
+
+      // 頭部
+      ctx.beginPath();
+      ctx.arc(0, -25, 14, 0, Math.PI * 2);
+      ctx.fillStyle = '#f6b93b';
+      ctx.fill();
+
+      // 戰鬥頭帶
+      ctx.fillStyle = isRed ? '#ff6b81' : '#70a1ff';
+      ctx.fillRect(-14, -34, 28, 7);
+      ctx.beginPath();
+      ctx.moveTo(isRed ? -12 : 12, -30);
+      ctx.lineTo(isRed ? -22 : 22, -34 + Math.sin(pullAnimOffset * 2) * 4);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = isRed ? '#ff6b81' : '#70a1ff';
+      ctx.stroke();
+
+      // 表情
+      ctx.strokeStyle = '#2f3542';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      if (isFalling) {
+        ctx.moveTo(isRed ? 2 : -6, -26);
+        ctx.lineTo(isRed ? 6 : -2, -22);
+        ctx.moveTo(isRed ? 6 : -2, -26);
+        ctx.lineTo(isRed ? 2 : -6, -22);
+      } else {
+        ctx.moveTo(isRed ? 1 : -7, -25);
+        ctx.lineTo(isRed ? 6 : -2, -23);
+        ctx.lineTo(isRed ? 1 : -7, -21);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    let time = 0;
+    function renderArena() {
+      time += 0.05;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+      gameState.ropeOffset += (gameState.targetRopeOffset - gameState.ropeOffset) * 0.1;
+      ropeVibration *= 0.92;
+
+      const groundY = h * 0.72;
+      const centerX = w * 0.5 + (gameState.ropeOffset / 100) * (w * 0.28);
+
+      // 1. 中央史萊姆泥潭
+      const pitWidth = w * 0.24;
+      const pitLeft = w * 0.5 - pitWidth / 2;
+      const pitRight = w * 0.5 + pitWidth / 2;
+
+      ctx.fillStyle = '#1c263c';
+      ctx.beginPath();
+      ctx.moveTo(0, groundY);
+      ctx.lineTo(pitLeft, groundY);
+      ctx.lineTo(pitLeft - 15, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(pitRight, groundY);
+      ctx.lineTo(w, groundY);
+      ctx.lineTo(w, h);
+      ctx.lineTo(pitRight + 15, h);
+      ctx.closePath();
+      ctx.fill();
+
+      // 液體
+      ctx.fillStyle = '#20bf6b';
+      ctx.beginPath();
+      ctx.moveTo(pitLeft - 5, groundY + 12);
+      for (let x = pitLeft; x <= pitRight; x += 15) {
+        const wave = Math.sin(time * 3 + x * 0.05) * 4;
+        ctx.lineTo(x, groundY + 12 + wave);
+      }
+      ctx.lineTo(pitRight + 5, h);
+      ctx.lineTo(pitLeft - 5, h);
+      ctx.closePath();
+      ctx.fill();
+
+      // 氣泡
+      ctx.fillStyle = '#a8e6cf';
+      for (let i = 0; i < 3; i++) {
+        const bx = pitLeft + 25 + ((time * 35 + i * 50) % (pitWidth - 50));
+        const by = groundY + 12 - (Math.sin(time * 2 + i) * 6);
+        ctx.beginPath();
+        ctx.arc(bx, by, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚠️ SLIME PIT ⚠️', w * 0.5, h - 14);
+
+      // 2. 拔河隊員
+      const redBaseX = centerX - 100;
+      const blueBaseX = centerX + 100;
+      const isRedFallen = gameState.ropeOffset > 85;
+      const isBlueFallen = gameState.ropeOffset < -85;
+
+      for (let i = 0; i < 3; i++) {
+        const wx = redBaseX - i * 52;
+        const wy = groundY - 14;
+        drawWarrior(ctx, wx, wy, true, time * 4 + i, isRedFallen && (wx > pitLeft));
+      }
+      for (let i = 0; i < 3; i++) {
+        const wx = blueBaseX + i * 52;
+        const wy = groundY - 14;
+        drawWarrior(ctx, wx, wy, false, time * 4 + i, isBlueFallen && (wx < pitRight));
+      }
+
+      // 3. 繩索
+      const ropeY = groundY - 12;
+      const ropeLeftX = redBaseX - 120;
+      const ropeRightX = blueBaseX + 120;
+      const vib = Math.sin(time * 20) * ropeVibration;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(ropeLeftX, ropeY);
+      ctx.quadraticCurveTo(centerX, ropeY + vib + 4, ropeRightX, ropeY);
+      ctx.lineWidth = 9;
+      ctx.strokeStyle = '#d2a679';
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.setLineDash([6, 6]);
+      ctx.moveTo(ropeLeftX, ropeY);
+      ctx.quadraticCurveTo(centerX, ropeY + vib + 4, ropeRightX, ropeY);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#8c6239';
+      ctx.stroke();
+      ctx.restore();
+
+      // 4. 中心紅布條
+      ctx.save();
+      ctx.translate(centerX, ropeY + vib + 2);
+      ctx.fillStyle = '#ff4757';
+      ctx.beginPath();
+      ctx.moveTo(-6, -6);
+      ctx.lineTo(6, -6);
+      ctx.lineTo(10, 20 + Math.sin(time * 6) * 5);
+      ctx.lineTo(0, 14);
+      ctx.lineTo(-10, 20 + Math.sin(time * 6) * 5);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.arc(0, 0, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // 5. 粒子
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.2;
+        p.alpha *= p.life;
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.alpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        if (p.alpha < 0.05) particles.splice(i, 1);
+      }
+      ctx.globalAlpha = 1.0;
+
+      // 更新下方長度計量進度條
+      const redPercent = Math.max(5, Math.min(95, 50 - gameState.ropeOffset * 0.45));
+      document.getElementById('ropeMeterRed').style.width = `${redPercent}%`;
+      document.getElementById('ropeMeterBlue').style.width = `${100 - redPercent}%`;
+
+      requestAnimationFrame(renderArena);
+    }
+
+    /* =========================================================
+       3. 遊戲邏輯與單字拼答
+       ========================================================= */
+
+    function setupNewWord(word, meaning) {
+      currentWord = word.trim().toUpperCase().replace(/[^A-Z\s]/g, '');
+      currentMeaning = meaning.trim() || '（請根據字母拼出單字）';
+
+      document.getElementById('displayMeaning').textContent = currentMeaning;
+      
+      const letterCountOnly = currentWord.replace(/\s/g, '').length;
+      document.getElementById('displayLettersCount').textContent = `(共 ${letterCountOnly} 個字母)`;
+
+      // 重設計分與狀態
+      gameState.currentTeam = 'red';
+      gameState.guessedLetters.clear();
+      gameState.correctLetters.clear();
+      gameState.redCorrectCount = 0;
+      gameState.blueCorrectCount = 0;
+      gameState.ropeOffset = 0;
+      gameState.targetRopeOffset = 0;
+      gameState.isGameOver = false;
+
+      document.getElementById('redScore').textContent = '0';
+      document.getElementById('blueScore').textContent = '0';
+      document.getElementById('winModal').classList.remove('show');
+      document.getElementById('setupModal').classList.remove('show');
+
+      // 重設隊伍卡片
+      document.getElementById('cardRed').classList.add('active');
+      document.getElementById('cardBlue').classList.remove('active');
+      document.getElementById('redTurnBadge').style.display = 'inline-block';
+      document.getElementById('blueTurnBadge').style.display = 'none';
+
+      initWordTiles();
+      initKeyboard();
+    }
+
+    function initWordTiles() {
+      const container = document.getElementById('wordTiles');
+      container.innerHTML = '';
+      for (let i = 0; i < currentWord.length; i++) {
+        const char = currentWord[i];
+        const tile = document.createElement('div');
+        if (char === ' ') {
+          tile.className = 'word-tile space-tile';
+        } else {
+          tile.className = 'word-tile unrevealed';
+          tile.id = `tile-${i}`;
+          tile.textContent = '';
+          tile.dataset.char = char;
+        }
+        container.appendChild(tile);
+      }
+    }
+
+    function initKeyboard() {
+      const container = document.getElementById('keyboard');
+      container.innerHTML = '';
+
+      const rows = [
+        ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+        ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+        ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
+      ];
+
+      rows.forEach(row => {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'keyboard-row';
+        row.forEach(letter => {
+          const btn = document.createElement('button');
+          btn.className = 'key-btn';
+          btn.id = `key-${letter}`;
+          btn.textContent = letter;
+          btn.onclick = () => handleGuess(letter);
+          rowDiv.appendChild(btn);
+        });
+        container.appendChild(rowDiv);
+      });
+    }
+
+    function triggerImpact(text, color) {
+      const arenaBox = document.getElementById('arenaBox');
+      arenaBox.classList.remove('screen-shake');
+      void arenaBox.offsetWidth;
+      arenaBox.classList.add('screen-shake');
+
+      const fb = document.getElementById('feedbackText');
+      fb.textContent = text;
+      fb.style.color = color;
+      fb.classList.remove('active');
+      void fb.offsetWidth;
+      fb.classList.add('active');
+      setTimeout(() => fb.classList.remove('active'), 900);
+    }
+
+    function switchTurn() {
+      gameState.currentTeam = gameState.currentTeam === 'red' ? 'blue' : 'red';
+      const cardRed = document.getElementById('cardRed');
+      const cardBlue = document.getElementById('cardBlue');
+      const redBadge = document.getElementById('redTurnBadge');
+      const blueBadge = document.getElementById('blueTurnBadge');
+
+      if (gameState.currentTeam === 'red') {
+        cardRed.classList.add('active');
+        cardBlue.classList.remove('active');
+        redBadge.style.display = 'inline-block';
+        blueBadge.style.display = 'none';
+      } else {
+        cardBlue.classList.add('active');
+        cardRed.classList.remove('active');
+        blueBadge.style.display = 'inline-block';
+        redBadge.style.display = 'none';
+      }
+    }
+
+    function handleGuess(letter) {
+      if (gameState.isGameOver || gameState.guessedLetters.has(letter)) return;
+
+      gameState.guessedLetters.add(letter);
+      const keyBtn = document.getElementById(`key-${letter}`);
+
+      const occurrences = [];
+      for (let i = 0; i < currentWord.length; i++) {
+        if (currentWord[i] === letter) occurrences.push(i);
+      }
+
+      if (occurrences.length > 0) {
+        // 猜對
+        gameState.correctLetters.add(letter);
+        occurrences.forEach(idx => {
+          const tile = document.getElementById(`tile-${idx}`);
+          if (tile) {
+            tile.textContent = letter;
+            tile.classList.remove('unrevealed');
+            tile.classList.add('revealed');
+          }
+        });
+
+        keyBtn.classList.add(gameState.currentTeam === 'red' ? 'correct-red' : 'correct-blue');
+
+        // 拉力計算
+        const hitMultiplier = occurrences.length;
+        const pullPower = hitMultiplier * 14;
+
+        if (gameState.currentTeam === 'red') {
+          gameState.targetRopeOffset = Math.max(-95, gameState.targetRopeOffset - pullPower);
+          gameState.redCorrectCount += occurrences.length;
+          document.getElementById('redScore').textContent = gameState.redCorrectCount;
+        } else {
+          gameState.targetRopeOffset = Math.min(95, gameState.targetRopeOffset + pullPower);
+          gameState.blueCorrectCount += occurrences.length;
+          document.getElementById('blueScore').textContent = gameState.blueCorrectCount;
+        }
+
+        ropeVibration = 18;
+        sound.playPull();
+        setTimeout(() => sound.playCorrect(hitMultiplier), 100);
+
+        const spawnX = gameState.currentTeam === 'red' ? canvas.width * 0.35 : canvas.width * 0.65;
+        spawnParticles(spawnX, canvas.height * 0.55, gameState.currentTeam === 'red' ? '#ff4757' : '#1e90ff', hitMultiplier * 10);
+
+        const feedbackMsg = hitMultiplier > 1 
+          ? `💥 爆擊！${hitMultiplier} 個 ${letter}！強力拔河！` 
+          : `✨ 命中字母 ${letter}！`;
+        triggerImpact(feedbackMsg, gameState.currentTeam === 'red' ? '#ff6b81' : '#70a1ff');
+
+      } else {
+        // 猜錯
+        keyBtn.classList.add('wrong-used');
+        const penalty = 10;
+        if (gameState.currentTeam === 'red') {
+          gameState.targetRopeOffset = Math.min(95, gameState.targetRopeOffset + penalty);
+        } else {
+          gameState.targetRopeOffset = Math.max(-95, gameState.targetRopeOffset - penalty);
+        }
+
+        ropeVibration = 8;
+        sound.playWrong();
+        triggerImpact(`❌ 沒有 ${letter}！隊伍失足腳滑！`, '#ff4757');
+      }
+
+      checkGameOutcome();
+
+      if (!gameState.isGameOver) {
+        switchTurn();
+      }
+    }
+
+    function checkGameOutcome() {
+      // 檢查是否全部字母揭曉
+      let allTilesRevealed = true;
+      for (let i = 0; i < currentWord.length; i++) {
+        const char = currentWord[i];
+        if (char !== ' ' && !gameState.correctLetters.has(char)) {
+          allTilesRevealed = false;
+          break;
+        }
+      }
+
+      const redFallen = gameState.targetRopeOffset >= 80;
+      const blueFallen = gameState.targetRopeOffset <= -80;
+
+      if (allTilesRevealed || redFallen || blueFallen) {
+        gameState.isGameOver = true;
+
+        let winner = '';
+        let subtitle = '';
+
+        if (redFallen) {
+          winner = '⚡ 藍隊 (Ice Team)';
+          subtitle = '紅隊失去立足點，整隊失足跌落黏液泥潭！藍隊大獲全勝！';
+          sound.playSplash();
+        } else if (blueFallen) {
+          winner = '🔥 紅隊 (Fire Team)';
+          subtitle = '藍隊被紅隊神力拖垮，撲通一聲落水！紅隊稱霸！';
+          sound.playSplash();
+        } else {
+          if (gameState.targetRopeOffset < 0) {
+            winner = '🔥 紅隊 (Fire Team)';
+            subtitle = '單字全數解鎖！紅隊以絕佳拉力優勢獲勝！';
+          } else if (gameState.targetRopeOffset > 0) {
+            winner = '⚡ 藍隊 (Ice Team)';
+            subtitle = '單字全數解鎖！藍隊以微弱拉力優勢奪冠！';
+          } else {
+            winner = '🤝 雙方平手！';
+            subtitle = '勢均力敵的精彩對決！';
+          }
+        }
+
+        setTimeout(() => {
+          sound.playVictory();
+          speakWord(currentWord);
+          document.getElementById('modalTitle').textContent = `${winner} 獲勝！`;
+          document.getElementById('modalSubtitle').textContent = subtitle;
+          document.getElementById('modalWordReview').textContent = currentWord;
+          document.getElementById('modalMeaningReview').textContent = currentMeaning;
+          document.getElementById('winModal').classList.add('show');
+        }, 600);
+      }
+    }
+
+    /* =========================================================
+       4. 老師出題與防偷看開關
+       ========================================================= */
+    const setupModal = document.getElementById('setupModal');
+    const inputWord = document.getElementById('inputWord');
+    const inputMeaning = document.getElementById('inputMeaning');
+    const btnMaskToggle = document.getElementById('btnMaskToggle');
+
+    function openSetupModal() {
+      setupModal.classList.add('show');
+      inputWord.focus();
+    }
+
+    function closeSetupModal() {
+      setupModal.classList.remove('show');
+    }
+
+    // 防偷看遮蔽切換
+    btnMaskToggle.onclick = () => {
+      gameState.isMasked = !gameState.isMasked;
+      if (gameState.isMasked) {
+        inputWord.type = 'password';
+        btnMaskToggle.textContent = '👁️ 點此顯示單字';
+      } else {
+        inputWord.type = 'text';
+        btnMaskToggle.textContent = '🙈 點此遮蔽(防學生偷看)';
+      }
+    };
+
+    function setPreset(word, meaning) {
+      inputWord.value = word;
+      inputMeaning.value = meaning;
+    }
+
+    // 點擊立即出題
+    document.getElementById('btnStartGameWithWord').onclick = () => {
+      const word = inputWord.value.trim();
+      const meaning = inputMeaning.value.trim();
+      if (!word) {
+        alert('請輸入英文單字！');
+        return;
+      }
+      setupNewWord(word, meaning);
+    };
+
+    // 實體鍵盤監聽
+    window.addEventListener('keydown', (e) => {
+      // 若正在彈跳出題窗中打字，不觸發拔河猜字
+      if (setupModal.classList.contains('show')) {
+        if (e.key === 'Enter') {
+          document.getElementById('btnStartGameWithWord').click();
+        }
+        return;
+      }
+
+      const key = e.key.toUpperCase();
+      if (/^[A-Z]$/.test(key)) {
+        handleGuess(key);
+      }
+    });
+
+    // 按鈕監聽
+    document.getElementById('btnOpenSetup').onclick = openSetupModal;
+    document.getElementById('btnPronounce').onclick = () => speakWord(currentWord);
+    document.getElementById('btnRestart').onclick = () => setupNewWord(currentWord, currentMeaning);
+    document.getElementById('btnModalPlayAgain').onclick = () => setupNewWord(currentWord, currentMeaning);
+    document.getElementById('btnNextWordModal').onclick = () => {
+      document.getElementById('winModal').classList.remove('show');
+      openSetupModal();
+    };
+
+    window.addEventListener('click', () => sound.init(), { once: true });
+
+    // 啟動預設遊戲 (可直接出題)
+    setupNewWord('interesting', '有趣的、引人入勝的');
+    renderArena();
+  </script>
+</body>
+</html>
